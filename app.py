@@ -1,97 +1,122 @@
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 import os
-from datetime import datetime
-import requests
-import json
+import PyPDF2
+import torch
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
+# Initialize Flask app
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Folder paths
-UPLOAD_FOLDER = 'uploads/'
-PROCESSED_FOLDER = 'processed/'
-LOG_FILE = 'saved_results.json'
+# Ensure uploads folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Ensure folders exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+# Load the fine-tuned GPT-2 model
+MODEL_DIR = "./fine_tuned_gpt2"  # Folder where your fine-tuned GPT-2 model is saved
+print("Loading fine-tuned GPT-2 model...")
+tokenizer = GPT2Tokenizer.from_pretrained(MODEL_DIR)
+model = GPT2LMHeadModel.from_pretrained(MODEL_DIR)
 
-# Groq API Setup
-GROQ_API_URL = 'https://api.groq.com/v1/your-endpoint'
-API_KEY = 'vgsk_muHGenrZ6nsTDHedx86XWGdyb3FY5VMrbsmdhRwbXUzr8StgBdjs'  # Add your Groq API key here
+# Set device to GPU if available, else CPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
 
-# Home page - upload a file
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-# About Us page
-@app.route('/about')
-def about():
-    return render_template('about.html')
-
-# Feedback page
-@app.route('/feedback')
-def feedback():
-    return render_template('feedback.html')
-
-# Handle file upload and send it to Groq API
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return "No file uploaded!", 400
+        return jsonify({'error': 'No file part'})
 
     file = request.files['file']
-
     if file.filename == '':
-        return "No file selected!", 400
+        return jsonify({'error': 'No selected file'})
 
-    # Generate a unique filename using timestamp
-    filename = generate_unique_filename(file.filename)
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
 
-    # Save the file locally
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(file_path)
+        # Extract text from PDF
+        text = extract_text_from_pdf(filepath)
+        if not text:
+            return jsonify({'error': 'Could not extract text from the PDF.'})
 
-    # Send the PPT file to Groq API for analysis
-    response = send_to_groq(file_path)
+        # Summarize the content using fine-tuned GPT-2
+        summary = generate_text(f"Summarize this text:\n{text}", max_length=150)
 
-    if response.status_code == 200:
-        analysis = response.json()  # Assuming API returns JSON analysis
-        save_result(filename, analysis)
-        return render_template('chatbot.html', analysis=analysis)
-    else:
-        return "Error in analysis!", 500
+        return jsonify({'summary': summary})
 
-# Generate a unique filename with timestamp
-def generate_unique_filename(filename):
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    name, ext = os.path.splitext(filename)
-    return f"{name}_{timestamp}{ext}"
+@app.route('/feedback', methods=["POST"])
+def feedback():
+    name = request.form.get("name")
+    feedback = request.form.get("feedback")
+    print(f"Feedback from {name}: {feedback}")
+    return jsonify({"message": "Thank you for your feedback!"})
 
-# Function to send file to Groq API
-def send_to_groq(file_path):
-    headers = {
-        'Authorization': f'Bearer {API_KEY}'
-    }
-    files = {'file': open(file_path, 'rb')}
-    response = requests.post(GROQ_API_URL, headers=headers, files=files)
-    return response
+@app.route('/ask', methods=['POST'])
+def ask_question():
+    data = request.get_json()
+    question = data.get('question', '')
+    context = data.get('context', '')
 
-# Save analysis result along with filename in a JSON log file
-def save_result(filename, analysis):
-    # Check if the log file exists
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, 'r') as f:
-            results = json.load(f)
-    else:
-        results = {}
+    if not question or not context:
+        return jsonify({'error': 'Question or context is missing'})
 
-    # Add new result entry
-    results[filename] = analysis
+    # Generate an answer using the fine-tuned GPT-2 model
+    prompt = f"Context: {context}\nQuestion: {question}\nAnswer:"
+    answer = generate_text(prompt, max_length=100)
 
-    # Save back to the log file
-    with open(LOG_FILE, 'w') as f:
-        json.dump(results, f, indent=4)
+    return jsonify({'answer': answer})
+
+def extract_text_from_pdf(filepath):
+    """
+    Extracts text from a PDF file.
+    """
+    try:
+        with open(filepath, 'rb') as pdf_file:
+            reader = PyPDF2.PdfReader(pdf_file)
+            text = ''
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return text
+    except Exception as e:
+        print(f"Error extracting text: {e}")
+        return None
+
+def generate_text(prompt, max_length=150):
+    """
+    Generates text using the fine-tuned GPT-2 model.
+    """
+    try:
+        # Tokenize the prompt and ensure padding is handled correctly
+        inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=1024).to(device)
+
+        # Generate text with the model
+        output_sequences = model.generate(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs.get("attention_mask", None),  # Make sure attention_mask is passed
+            max_length=max_length + len(inputs["input_ids"][0]),  # To account for the input length
+            temperature=0.7,  # Controls randomness
+            top_p=0.9,        # Nucleus sampling
+            top_k=50,         # Limits sampling pool
+            repetition_penalty=1.2,
+            do_sample=True,
+            pad_token_id=50256,  # Set pad token ID to EOS token ID
+            eos_token_id=50256,  # Use the EOS token as the padding token
+            no_repeat_ngram_size=2,  # Prevent repeating n-grams
+        )
+
+        # Decode and return the generated text
+        generated_text = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
+        return generated_text
+    except Exception as e:
+        print(f"Error generating text: {e}")
+        return "Error in text generation."
 
 if __name__ == '__main__':
     app.run(debug=True)

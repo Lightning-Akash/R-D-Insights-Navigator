@@ -1,0 +1,6 @@
+Machine learning has revolutionized R&D activities by automating complex tasks.
+Natural language models are now enabling intelligent search and data analysis.
+R&D researchers need efficient tools to analyze structured and unstructured data.
+AI-based tools can enhance decision-making in research and development workflows.
+Generative models like GPT help summarize, classify, and search large datasets.
+Data-driven research accelerates the time-to-insight for businesses and academia.

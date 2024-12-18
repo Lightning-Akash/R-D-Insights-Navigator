@@ -1,0 +1,126 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f9f9f9;
+    color: #333;
+}
+
+/* Header */
+header {
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    color: white;
+    text-align: center;
+    padding: 1rem;
+}
+
+/* Main Content */
+main {
+    padding: 2rem;
+    display: flex;
+    gap: 2rem;
+}
+
+/* File Upload Section */
+#file-upload {
+    flex: 2;
+    background: #fff;
+    padding: 1.5rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+#file-upload h2 {
+    color: #4CAF50;
+}
+
+#file-upload button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#file-upload button:hover {
+    background: #45A049;
+}
+
+#summary {
+    margin-top: 1rem;
+    background: #f4f4f4;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+/* Chatbot Section */
+#chatbot {
+    flex: 1;
+    background: #fff;
+    padding: 1.5rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+#chatbot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #4CAF50;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+}
+
+#chatbot-body {
+    margin-top: 1rem;
+    display: none;
+    border-top: 1px solid #ccc;
+    padding-top: 1rem;
+}
+
+#chat-display {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    background: #f9f9f9;
+}
+
+#chat-input {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#chat-input input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+
+#chat-input button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#chat-input button:hover {
+    background: #45A049;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 1rem;
+    background: #333;
+    color: white;
+    margin-top: 2rem;
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R&D Data Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Intelligent Natural Language Search</h1>
+        <p>Your R&D Data Companion</p>
+    </header>
+    <main>
+        <section id="file-upload">
+            <h2>Upload Your R&D Document</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" id="file" name="file" required>
+                <button type="submit">Upload and Summarize</button>
+            </form>
+            <div id="summary">
+                <h3>Document Summary</h3>
+                <p id="summaryText">No document uploaded yet.</p>
+            </div>
+        </section>
+        <section id="chatbot">
+            <div id="chatbot-header">
+                <h3>ResearchBot</h3>
+                <button id="toggleChat">Toggle Chat</button>
+            </div>
+            <div id="chatbot-body" style="display: none;">
+                <div id="chat-display"></div>
+                <div id="chat-input">
+                    <input type="text" id="question" placeholder="Ask a question...">
+                    <button id="askBtn">Send</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Intelligent R&D Assistant</p>
+    </footer>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.getElementById('file');
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+            if (data.summary) {
+                document.getElementById('summaryText').textContent = data.summary;
+            } else {
+                alert(data.error);
+            }
+        });
+        const chatBody = document.getElementById('chatbot-body');
+        document.getElementById('toggleChat').addEventListener('click', () => {
+            chatBody.style.display = chatBody.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('askBtn').addEventListener('click', async () => {
+            const question = document.getElementById('question').value;
+            const summary = document.getElementById('summaryText').textContent;
+
+            const response = await fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ question, context: summary }),
+            });
+            const data = await response.json();
+            const chatDisplay = document.getElementById('chat-display');
+            if (data.answer) {
+                chatDisplay.innerHTML += `<div class="chat-response">Bot: ${data.answer}</div>`;
+            } else {
+                chatDisplay.innerHTML += `<div class="chat-error">Error: ${data.error}</div>`;
+            }
+        });
+    </script>
+
+</body>
+</html>
+<body>
